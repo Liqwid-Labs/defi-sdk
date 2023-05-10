@@ -1,0 +1,14 @@
+{
+  "name": "defi-sdk",
+  "version": "0.0.1",
+  "description": "A set of utilities to query on-chain data from DeFi protocols on the Cardano Blockchain",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@blockfrost/blockfrost-js": "^5.3.1",
+    "cbor": "^8.1.0",
+    "typescript": "^5.0.4"
+  }
+}
