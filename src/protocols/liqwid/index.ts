@@ -180,21 +180,10 @@ const suppliedBalanceInMarket = (Query: QueryLayer) => async <M extends ValueOf<
   };
 };
 
-export const LiqwidLayer: ProtocolLayer<typeof Liqwid> = {
-  suppliedBalanceInMarket,
-  suppliedBalance: (Query) => async (address) => {
-    const balances = await Promise.all(
-      Object.values(Liqwid.markets)
-        .map((market) => suppliedBalanceInMarket(Query)(market, address))
-    );
-
-    return balances.filter(({quantity}) => quantity > 0);
-  },
-  currentDebtInMarket: (Query) => async (market, address) => {
-    const pkh = addressToPaymentPubKeyHash(address);
-
-    console.log(address);
-    console.log(pkh);
+const currentDebtInMarket = (Query: QueryLayer) => async <M extends ValueOf<typeof Liqwid['markets']>>(market: M, address: Address | StakeAddress): Promise<Quantity<M['underlyingAsset']>> => {
+    const pubKeyHashes = isStakeAddress(address)
+      ? (await Query.stakeAddressAddresses(address)).map(addressToPaymentPubKeyHash)
+      : [addressToPaymentPubKeyHash(address)];
 
     const loansInMarket = (
       await Promise.all(
@@ -202,19 +191,39 @@ export const LiqwidLayer: ProtocolLayer<typeof Liqwid> = {
           (loanToken) => Query.assetUtxosInAddress(market.loanUtxosAddress, loanToken, Liqwid.parseLoanDatum)
         ))).flat(); // TODO: query all tokens at once from loan validator utxos
 
-    console.log(loansInMarket);
-
     const getLoanDebt = (loan: LiqwidLoanDatum) =>
       loan.principal + loan.minInterest + loan.interest;  // TODO: review this minInterest part
 
     const totalDebt =
       loansInMarket
-      .filter(({parsedDatum}) => parsedDatum?.owner === pkh)
-      .reduce((acc, loanUtxo) => acc + getLoanDebt(loanUtxo.parsedDatum!), 0n) // TODO: make this more robust
+        .filter(({parsedDatum}) => pubKeyHashes.some((pkh) => parsedDatum?.owner.equals(pkh)))
+        .reduce((acc, loanUtxo) => acc + getLoanDebt(loanUtxo.parsedDatum!), 0n) // TODO: make this more robust
 
     return {
       asset: market.underlyingAsset,
       quantity: totalDebt
     };
-  },
-};
+  }
+
+  export const LiqwidLayer: ProtocolLayer<typeof Liqwid> = (Query: QueryLayer) => ({
+    suppliedBalanceInMarket: suppliedBalanceInMarket(Query),
+    currentDebtInMarket: currentDebtInMarket(Query),
+
+    async currentDebt (address) {
+      const debts = await Promise.all(
+        Object.values(Liqwid.markets)
+        .map((market) => currentDebtInMarket(Query)(market, address))
+      );
+
+      return debts.filter(({quantity}) => quantity > 0);
+    },
+
+    async suppliedBalance (address) {
+      const balances = await Promise.all(
+        Object.values(Liqwid.markets)
+        .map((market) => suppliedBalanceInMarket(Query)(market, address))
+      );
+
+      return balances.filter(({quantity}) => quantity > 0);
+    },
+  });

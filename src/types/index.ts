@@ -1,6 +1,6 @@
-// General types
-
 import {RawCBOR} from "../utils/cbor";
+
+// General types
 
 export type Address = `addr${string}`;
 export const isAddress = (maybeAddress: string): maybeAddress is Address =>
@@ -43,11 +43,11 @@ export type ProtocolLoanDatum<P> = P extends Protocol<any, infer L> ? L : never;
 
 export type Quantity<T extends Asset> = {asset: T, quantity: bigint};
 
-export interface ProtocolLayer<P extends Protocol<ProtocolStateDatum<P>, ProtocolLoanDatum<P>>> {
-  suppliedBalance (Query: QueryLayer): (address: Address | StakeAddress) => Promise<Quantity<ValueOf<P['markets']>['underlyingAsset']>[]>;
-  suppliedBalanceInMarket <M extends ValueOf<P['markets']>>(Query: QueryLayer): (market: M, address: Address | StakeAddress) => Promise<Quantity<M['underlyingAsset']>>;
-  // currentDebt: (address: Address) => Promise<bigint>;
-  currentDebtInMarket <M extends ValueOf<P['markets']>>(Query: QueryLayer): (market: M, address: Address) => Promise<Quantity<M['underlyingAsset']>>;
+export type ProtocolLayer<P extends Protocol<ProtocolStateDatum<P>, ProtocolLoanDatum<P>>> = (Query: QueryLayer) => {
+  suppliedBalance (address: Address | StakeAddress): Promise<Quantity<ValueOf<P['markets']>['underlyingAsset']>[]>;
+  suppliedBalanceInMarket <M extends ValueOf<P['markets']>>(market: M, address: Address | StakeAddress): Promise<Quantity<M['underlyingAsset']>>;
+  currentDebt (address: Address | StakeAddress): Promise<Quantity<ValueOf<P['markets']>['underlyingAsset']>[]>;
+  currentDebtInMarket <M extends ValueOf<P['markets']>>(market: M, address: Address | StakeAddress): Promise<Quantity<M['underlyingAsset']>>;
 }
 
 /*
@@ -71,6 +71,8 @@ export interface QueryLayer {
   stakeAddressFromAddress: (address: Address) => Promise<StakeAddress>;
   assetAmountInStakeAddress: (stakeAddress: StakeAddress, asset: Asset) => Promise<bigint>;
   assetAmountInAddress: (address: Address, asset: Asset) => Promise<bigint>;
+  relatedAddresses: (address: Address) => Promise<Address[]>;
+  stakeAddressAddresses: (stakeAddres: StakeAddress) => Promise<Address[]>;
   stateThreadDatum: <T>(scriptAddress: Address, stateThreadToken: NativeToken, decoder?: DatumDecoder<T>) => Promise<typeof decoder extends undefined ? RawCBOR : T>; // TODO: this conditional is useless
   assetUtxosInAddress: <T>(address: Address, asset: Asset, decoder?: DatumDecoder<T>) => Promise<(typeof decoder extends undefined ? BaseUtxo : ScriptUtxo<T>)[]>; // TODO: fix this type
 }
@@ -85,4 +87,3 @@ export type AsyncReturnType<AsyncFunction> =
     : never;
 
 export type ArrayElement<A> = A extends (infer E)[] ? E : never;
-

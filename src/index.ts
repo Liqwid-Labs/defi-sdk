@@ -1,5 +1,6 @@
 import {BlockFrostAdapter} from "./adapters/blockfrost";
 import {Liqwid, LiqwidLayer} from "./protocols/liqwid";
+export const Liqwid2 = Liqwid
 
 
 /*
@@ -46,10 +47,57 @@ import {Liqwid, LiqwidLayer} from "./protocols/liqwid";
 // BlockFrostAdapter.stateThreadDatum(Liqwid.markets.ADA.loanUtxosAddress, Liqwid.markets.ADA.loanTokens[0])
 // .then(console.log)
 
-// LiqwidLayer.suppliedBalanceInMarket(BlockFrostAdapter)(Liqwid.markets.ADA, "addr1qxp5nghua3lt5064ulmmvqls727ljvjq2e5mfdptefyu4k27c9jd6wgt3qh6h3h0t22cznuxpw9elax5s564378rh0dqcd69kn")
+// LiqwidLayer(BlockFrostAdapter).suppliedBalanceInMarket(Liqwid.markets.ADA, "addr1qxp5nghua3lt5064ulmmvqls727ljvjq2e5mfdptefyu4k27c9jd6wgt3qh6h3h0t22cznuxpw9elax5s564378rh0dqcd69kn")
 // .then((v) => console.log(v))
 
-LiqwidLayer.currentDebtInMarket(BlockFrostAdapter)(
-  Liqwid.markets.ADA,
-  "addr1qy2eptutf8yn9kms0u49tr6tkvj468xlmd6y44uqhv73wf0h6st8ttj0hacmylsme32vyqz3y830mathac4ra9p8ujussl8fw2"
-).then((v) => console.log(v))
+// LiqwidLayer(BlockFrostAdapter).currentDebtInMarket(
+  // Liqwid.markets.ADA,
+  // "addr1q9kxjmqwt2de96sf284fqcusppeep55egnarw36h986fdq0h6st8ttj0hacmylsme32vyqz3y830mathac4ra9p8ujusarqejh"
+// ).then((v) => console.log(v))
+
+// LiqwidLayer(BlockFrostAdapter).currentDebtInMarket(
+  // Liqwid.markets.ADA,
+  // "stake1u8mag9n44e8m7udj0cduc4xzqpgjrcha74m7u237jsn7fwgdqa0zx"
+// ).then((v) => console.log(v))
+
+LiqwidLayer(BlockFrostAdapter).currentDebt("addr1q8anl7qusc8aklly4sw80czujnt69f5tqu8xa4kryyujsldxj95970vfr9pzmygfauqtx8x6aanhda3azwz2m2js3dqq93jg0q")
+.then((v) => console.log(v))
+
+// Markets per PKH
+// const find_all = async () => {
+  // const all_loans = (await Promise.all(
+    // Object.values(Liqwid.markets).flatMap(
+      // market => market.loanTokens.map(
+        // token => BlockFrostAdapter.assetUtxosInAddress(
+          // market.loanUtxosAddress,
+          // token,
+          // Liqwid.parseLoanDatum
+        // )
+      // )
+    // )
+  // )).flat();
+
+  // const find = (needle: any, haystack: any) => [...haystack].find((x: any) => x.equals(needle));
+
+  // return all_loans.reduce(
+    // (seen: Map<Buffer, number>, {parsedDatum}) => {
+      // if (!parsedDatum?.owner) {
+        // return seen;
+      // }
+
+      // const found = find(parsedDatum.owner, seen.keys());
+      // if (found) {
+        // console.log(found)
+        // console.log(seen.get(found))
+        // seen.set(found, seen.get(found) as any + 1)
+        // return seen;
+      // }
+
+      // seen.set(parsedDatum.owner, 1);
+      // return seen;
+    // },
+    // new Map()
+  // );
+// }
+
+// find_all().then(console.log)

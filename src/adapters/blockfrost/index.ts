@@ -49,16 +49,20 @@ async function assetUtxosInAddress <D>(address: Address, asset: Asset, decoder?:
   }));
 }
 
+async function stakeAddressAddresses (stakeAddress: StakeAddress): Promise<Address[]> {
+  const accountAddresses = await api.accountsAddressesAll(stakeAddress);
+  return accountAddresses.map(({address}) => address as Address);
+};
+
+async function stakeAddressFromAddress (address: Address) {
+  const addrInfo = await api.addresses(address);
+  if (addrInfo.stake_address === null) {
+    throw new Error(`stakeAddressFromAddress: address does not have an associated stake address: ${address}`);
+  }
+  return addrInfo.stake_address as StakeAddress;
+};
 
 export const BlockFrostAdapter: QueryLayer = {
-  async stakeAddressFromAddress (address) {
-    const addrInfo = await api.addresses(address);
-    if (addrInfo.stake_address === null) {
-      throw new Error(`stakeAddressFromAddress: address does not have an associated stake address: ${address}`);
-    }
-    return addrInfo.stake_address as StakeAddress;
-  },
-
   async assetAmountInStakeAddress (stakeAddress, asset) {
     const assetsInAddress = await api.accountsAddressesAssetsAll(stakeAddress);
     return extractAssetQuantity(assetsInAddress, asset);
@@ -69,6 +73,13 @@ export const BlockFrostAdapter: QueryLayer = {
     return extractAssetQuantity(assetsInAddress.amount, asset);
   },
 
+  async relatedAddresses (address) {
+    const stakeAddress = await stakeAddressFromAddress(address);
+    return stakeAddressAddresses(stakeAddress);
+  },
+
+  stakeAddressAddresses,
+  stakeAddressFromAddress,
   stateThreadDatum,
   assetUtxosInAddress: assetUtxosInAddress as any,
 }
@@ -76,7 +87,6 @@ export const BlockFrostAdapter: QueryLayer = {
 // Utilities
 
 type BlockfrostQuantity = { unit: string, quantity: string };
-
 
 const toBlockfrostAsset = (asset: Asset): string =>
   (asset === 'lovelace')
