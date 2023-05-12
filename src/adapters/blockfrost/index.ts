@@ -45,7 +45,7 @@ async function assetUtxosInAddress <D>(address: Address, asset: Asset, decoder?:
 
   return utxos.map((utxo) => ({
     ...fromBlockfrostUtxo(utxo),
-    parsedDatum: !utxo.inline_datum ? null : decoder(utxo.inline_datum)
+    parsedDatum: !utxo.inline_datum ? null : decoder(cbor.decodeFirstSync(utxo.inline_datum, { encoding: 'hex'}))
   }));
 }
 

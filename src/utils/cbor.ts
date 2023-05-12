@@ -1,4 +1,4 @@
-export type RawCBORPrimitive = number | bigint | string;
+export type RawCBORPrimitive = number | bigint | string | Buffer;
 export type RawCBORComplex<T> = T | RawCBORComplex<T>[] | {[key: string]: RawCBORComplex<T>}
 export type RawCBOR = RawCBORComplex<RawCBORPrimitive>
 
