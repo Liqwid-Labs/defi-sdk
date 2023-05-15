@@ -8,6 +8,7 @@ import {
 
 export * from "./adapters";
 export * from "./protocols";
+export * from "./types";
 
 export class SDK<
   P extends Protocol<ProtocolStateDatum<P>, ProtocolLoanDatum<P>>
