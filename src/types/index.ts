@@ -48,6 +48,8 @@ export type ProtocolLayer<P extends Protocol<ProtocolStateDatum<P>, ProtocolLoan
   suppliedBalanceInMarket <M extends ValueOf<P['markets']>>(market: M, address: Address | StakeAddress): Promise<Quantity<M['underlyingAsset']>>;
   currentDebt (address: Address | StakeAddress): Promise<Quantity<ValueOf<P['markets']>['underlyingAsset']>[]>;
   currentDebtInMarket <M extends ValueOf<P['markets']>>(market: M, address: Address | StakeAddress): Promise<Quantity<M['underlyingAsset']>>;
+  marketCirculatingSupply <M extends ValueOf<P['markets']>>(market: M): Promise<Quantity<M['underlyingAsset']>>;
+  circulatingSupply (): Promise<Quantity<ValueOf<P['markets']>['underlyingAsset']>[]>;
 }
 
 /*
@@ -68,13 +70,14 @@ export type ScriptUtxo<Datum> = BaseUtxo & {
 }
 
 export interface QueryLayer {
-  stakeAddressFromAddress: (address: Address) => Promise<StakeAddress>;
-  assetAmountInStakeAddress: (stakeAddress: StakeAddress, asset: Asset) => Promise<bigint>;
-  assetAmountInAddress: (address: Address, asset: Asset) => Promise<bigint>;
-  relatedAddresses: (address: Address) => Promise<Address[]>;
-  stakeAddressAddresses: (stakeAddres: StakeAddress) => Promise<Address[]>;
-  stateThreadDatum: <T>(scriptAddress: Address, stateThreadToken: NativeToken, decoder?: DatumDecoder<T>) => Promise<typeof decoder extends undefined ? RawCBOR : T>; // TODO: this conditional is useless
-  assetUtxosInAddress: <T>(address: Address, asset: Asset, decoder?: DatumDecoder<T>) => Promise<(typeof decoder extends undefined ? BaseUtxo : ScriptUtxo<T>)[]>; // TODO: fix this type
+  stakeAddressFromAddress (address: Address): Promise<StakeAddress>;
+  assetAmountInStakeAddress (stakeAddress: StakeAddress, asset: Asset): Promise<bigint>;
+  assetAmountInAddress (address: Address, asset: Asset): Promise<bigint>;
+  relatedAddresses (address: Address): Promise<Address[]>;
+  stakeAddressAddresses (stakeAddres: StakeAddress): Promise<Address[]>;
+  stateThreadDatum <T>(scriptAddress: Address, stateThreadToken: NativeToken, decoder?: DatumDecoder<T>): Promise<typeof decoder extends undefined ? RawCBOR : T>; // TODO: this conditional is useless
+  assetUtxosInAddress <T>(address: Address, asset: Asset, decoder?: DatumDecoder<T>): Promise<(typeof decoder extends undefined ? BaseUtxo : ScriptUtxo<T>)[]>; // TODO: fix this type
+  assetCirculatingAmount (asset: Asset): Promise<bigint>;
 }
 
 // Utility types

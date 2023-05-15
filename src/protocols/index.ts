@@ -1,1 +1,1 @@
-import "./liqwid";
+export * from "./liqwid";

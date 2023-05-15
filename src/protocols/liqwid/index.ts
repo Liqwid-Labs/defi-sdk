@@ -1,4 +1,13 @@
-import { Address, isStakeAddress, Protocol, ProtocolLayer, Quantity, QueryLayer, StakeAddress, ValueOf } from "../../types";
+import {
+  Address,
+  isStakeAddress,
+  Protocol,
+  ProtocolLayer,
+  Quantity,
+  QueryLayer,
+  StakeAddress,
+  ValueOf
+} from "../../types";
 import { RawCBOR, cborConstructorToObject } from "../../utils/cbor";
 import { addressToPaymentPubKeyHash } from "../../utils/cardano";
 
@@ -172,13 +181,21 @@ const suppliedBalanceInMarket = (Query: QueryLayer) => async <M extends ValueOf<
     };
   }
 
+  return componentTokenToUnderlyingAsset(Query)(market, componentTokenBalance);
+};
+
+const marketComponentTokenRate = (Query: QueryLayer) => async <M extends ValueOf<typeof Liqwid['markets']>>(market: M): Promise<Ratio<bigint>> => {
   const stateDatum = await Query.stateThreadDatum(market.stateUtxoAddress, market.stateToken, Liqwid.parseStateDatum);
-  const componentTokenRate = stateDatum.qTokenRate;
+  return stateDatum.qTokenRate;
+}
+
+const componentTokenToUnderlyingAsset = (Query: QueryLayer) => async <M extends ValueOf<typeof Liqwid['markets']>>(market: M, componentTokenAmount: bigint): Promise<Quantity<M['underlyingAsset']>> => {
+  const componentTokenRate = await marketComponentTokenRate(Query)(market);
   return {
     asset: market.underlyingAsset,
-    quantity: (componentTokenBalance * componentTokenRate.denominator) / componentTokenRate.numerator
+    quantity: (componentTokenAmount * componentTokenRate.numerator) / componentTokenRate.denominator
   };
-};
+}
 
 const currentDebtInMarket = (Query: QueryLayer) => async <M extends ValueOf<typeof Liqwid['markets']>>(market: M, address: Address | StakeAddress): Promise<Quantity<M['underlyingAsset']>> => {
     const pubKeyHashes = isStakeAddress(address)
@@ -205,25 +222,43 @@ const currentDebtInMarket = (Query: QueryLayer) => async <M extends ValueOf<type
     };
   }
 
-  export const LiqwidLayer: ProtocolLayer<typeof Liqwid> = (Query: QueryLayer) => ({
-    suppliedBalanceInMarket: suppliedBalanceInMarket(Query),
-    currentDebtInMarket: currentDebtInMarket(Query),
+const marketCirculatingSupply = (Query: QueryLayer) => async <M extends ValueOf<typeof Liqwid['markets']>>(market: M): Promise<Quantity<M['underlyingAsset']>> => {
+  // NOTE: we've chosen to implement this as the total circulating quantity of
+  // the market's qTokens, but the supply can also be retrieved from the
+  // MarketState datums.
+  const componentTokenCirculatingSupply = await Query.assetCirculatingAmount(market.componentToken);
+  return componentTokenToUnderlyingAsset(Query)(market, componentTokenCirculatingSupply);
+};
 
-    async currentDebt (address) {
-      const debts = await Promise.all(
-        Object.values(Liqwid.markets)
-        .map((market) => currentDebtInMarket(Query)(market, address))
-      );
+export const LiqwidLayer: ProtocolLayer<typeof Liqwid> = (Query: QueryLayer) => ({
+  suppliedBalanceInMarket: suppliedBalanceInMarket(Query),
+  currentDebtInMarket: currentDebtInMarket(Query),
+  marketCirculatingSupply: marketCirculatingSupply(Query),
 
-      return debts.filter(({quantity}) => quantity > 0);
-    },
+  async currentDebt (address) {
+    const debts = await Promise.all(
+      Object.values(Liqwid.markets)
+      .map((market) => currentDebtInMarket(Query)(market, address))
+    );
 
-    async suppliedBalance (address) {
-      const balances = await Promise.all(
-        Object.values(Liqwid.markets)
-        .map((market) => suppliedBalanceInMarket(Query)(market, address))
-      );
+    return debts.filter(({quantity}) => quantity > 0);
+  },
 
-      return balances.filter(({quantity}) => quantity > 0);
-    },
-  });
+  async suppliedBalance (address) {
+    const balances = await Promise.all(
+      Object.values(Liqwid.markets)
+      .map((market) => suppliedBalanceInMarket(Query)(market, address))
+    );
+
+    return balances.filter(({quantity}) => quantity > 0);
+  },
+
+  async circulatingSupply () {
+    const supplyInEachMarket = await Promise.all(
+      Object.values(Liqwid.markets)
+      .map((market) => marketCirculatingSupply(Query)(market))
+    );
+
+    return supplyInEachMarket.filter(({quantity}) => quantity > 0);
+  },
+});

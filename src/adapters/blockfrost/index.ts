@@ -82,6 +82,11 @@ export const BlockFrostAdapter: QueryLayer = {
   stakeAddressFromAddress,
   stateThreadDatum,
   assetUtxosInAddress: assetUtxosInAddress as any,
+
+  async assetCirculatingAmount (asset) {
+    const assetInformation =  await api.assetsById(toBlockfrostAsset(asset));
+    return BigInt(assetInformation.quantity);
+  },
 }
 
 // Utilities
