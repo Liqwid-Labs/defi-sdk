@@ -4,12 +4,16 @@
   "description": "A set of utilities to query on-chain data from DeFi protocols on the Cardano Blockchain",
   "main": "index.js",
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "format": "prettier -w src"
   },
   "dependencies": {
     "@blockfrost/blockfrost-js": "^5.3.1",
     "@emurgo/cardano-serialization-lib-nodejs": "^11.4.0",
     "cbor": "^8.1.0",
     "typescript": "^5.0.4"
+  },
+  "devDependencies": {
+    "prettier": "^2.8.8"
   }
 }
