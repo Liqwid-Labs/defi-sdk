@@ -1,5 +1,3 @@
-import { BlockFrostAdapter } from "./adapters";
-import { Liqwid, LiqwidLayer } from "./protocols";
 import {
   Protocol,
   ProtocolLayer,
@@ -23,13 +21,3 @@ export class SDK<
     this.protocol = this.protocolLayer(this.queryLayer);
   }
 }
-
-export const liqwidSDK = new SDK(BlockFrostAdapter, LiqwidLayer);
-
-/*
- * Example queries
- */
-
-liqwidSDK.protocol
-  .marketCirculatingSupply(Liqwid.markets.ADA)
-  .then(console.log);

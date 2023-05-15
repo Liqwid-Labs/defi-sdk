@@ -1,5 +1,3 @@
-// Example: blockfrost adapter
-
 import { BlockFrostAPI } from "@blockfrost/blockfrost-js";
 import {
   Address,
@@ -17,127 +15,127 @@ import {
 import { RawCBOR } from "../../utils/cbor";
 import * as cbor from "cbor";
 
-const api = new BlockFrostAPI({
-  projectId: "***REMOVED***",
-});
+export class BlockFrostAdapter implements QueryLayer {
+  constructor(private readonly api: BlockFrostAPI) {}
 
-async function stateThreadDatum(
-  scriptAddress: Address,
-  stateThreadToken: NativeToken
-): Promise<RawCBOR>;
-async function stateThreadDatum<D>(
-  scriptAddress: Address,
-  stateThreadToken: NativeToken,
-  decoder: DatumDecoder<D>
-): Promise<D | null>;
-async function stateThreadDatum<D>(
-  scriptAddress: Address,
-  stateThreadToken: NativeToken,
-  decoder?: DatumDecoder<D>
-): Promise<RawCBOR | D | null> {
-  const [stateThreadUtxo] = await api.addressesUtxosAssetAll(
-    scriptAddress,
-    toBlockfrostAsset(stateThreadToken)
-  );
-
-  if (!stateThreadUtxo) {
-    throw new Error("State thread utxo not found");
-  }
-
-  if (!stateThreadUtxo.inline_datum) {
-    throw new Error("State thread utxo has no inline datum");
-  }
-
-  const rawDatum: RawCBOR = cbor.decodeFirstSync(stateThreadUtxo.inline_datum, {
-    encoding: "hex",
-  });
-
-  return decoder ? decoder(rawDatum) : rawDatum;
-}
-
-async function assetUtxosInAddress(
-  address: Address,
-  asset: Asset
-): Promise<BaseUtxo[]>;
-async function assetUtxosInAddress<D>(
-  address: Address,
-  asset: Asset,
-  decoder: DatumDecoder<D>
-): Promise<ScriptUtxo<D>[]>;
-async function assetUtxosInAddress<D>(
-  address: Address,
-  asset: Asset,
-  decoder?: DatumDecoder<D>
-): Promise<(BaseUtxo | ScriptUtxo<D>)[]> {
-  const utxos = await api.addressesUtxosAssetAll(
-    address,
-    toBlockfrostAsset(asset)
-  );
-
-  const fromBlockfrostUtxo = (
-    utxo: ArrayElement<AsyncReturnType<typeof api.addressesUtxosAssetAll>>
-  ): BaseUtxo => ({
-    address: utxo.address as Address,
-    txOutHash: utxo.tx_hash,
-    txOutIndex: utxo.output_index,
-    amount: utxo.amount.map(fromBlockfrostAmount),
-  });
-
-  if (!decoder) {
-    return utxos.map(fromBlockfrostUtxo);
-  }
-
-  return utxos.map((utxo) => ({
-    ...fromBlockfrostUtxo(utxo),
-    parsedDatum: !utxo.inline_datum
-      ? null
-      : decoder(cbor.decodeFirstSync(utxo.inline_datum, { encoding: "hex" })),
-  }));
-}
-
-async function stakeAddressAddresses(
-  stakeAddress: StakeAddress
-): Promise<Address[]> {
-  const accountAddresses = await api.accountsAddressesAll(stakeAddress);
-  return accountAddresses.map(({ address }) => address as Address);
-}
-
-async function stakeAddressFromAddress(address: Address) {
-  const addrInfo = await api.addresses(address);
-  if (addrInfo.stake_address === null) {
-    throw new Error(
-      `stakeAddressFromAddress: address does not have an associated stake address: ${address}`
+  async assetAmountInStakeAddress(stakeAddress: StakeAddress, asset: Asset) {
+    const assetsInAddress = await this.api.accountsAddressesAssetsAll(
+      stakeAddress
     );
-  }
-  return addrInfo.stake_address as StakeAddress;
-}
-
-export const BlockFrostAdapter: QueryLayer = {
-  async assetAmountInStakeAddress(stakeAddress, asset) {
-    const assetsInAddress = await api.accountsAddressesAssetsAll(stakeAddress);
     return extractAssetQuantity(assetsInAddress, asset);
-  },
+  }
 
-  async assetAmountInAddress(address, asset) {
-    const assetsInAddress = await api.addressesExtended(address);
+  async assetAmountInAddress(address: Address, asset: Asset) {
+    const assetsInAddress = await this.api.addressesExtended(address);
     return extractAssetQuantity(assetsInAddress.amount, asset);
-  },
+  }
 
-  async relatedAddresses(address) {
-    const stakeAddress = await stakeAddressFromAddress(address);
-    return stakeAddressAddresses(stakeAddress);
-  },
+  async relatedAddresses(address: Address) {
+    const stakeAddress = await this.stakeAddressFromAddress(address);
+    return this.stakeAddressAddresses(stakeAddress);
+  }
 
-  stakeAddressAddresses,
-  stakeAddressFromAddress,
-  stateThreadDatum,
-  assetUtxosInAddress: assetUtxosInAddress as any,
+  async stakeAddressAddresses(stakeAddress: StakeAddress): Promise<Address[]> {
+    const accountAddresses = await this.api.accountsAddressesAll(stakeAddress);
+    return accountAddresses.map(({ address }) => address as Address);
+  }
 
-  async assetCirculatingAmount(asset) {
-    const assetInformation = await api.assetsById(toBlockfrostAsset(asset));
+  async stakeAddressFromAddress(address: Address) {
+    const addrInfo = await this.api.addresses(address);
+    if (addrInfo.stake_address === null) {
+      throw new Error(
+        `stakeAddressFromAddress: address does not have an associated stake address: ${address}`
+      );
+    }
+    return addrInfo.stake_address as StakeAddress;
+  }
+
+  async stateThreadDatum(
+    scriptAddress: Address,
+    stateThreadToken: NativeToken
+  ): Promise<RawCBOR>;
+  async stateThreadDatum<D>(
+    scriptAddress: Address,
+    stateThreadToken: NativeToken,
+    decoder: DatumDecoder<D>
+  ): Promise<D | null>;
+  async stateThreadDatum<D>(
+    scriptAddress: Address,
+    stateThreadToken: NativeToken,
+    decoder?: DatumDecoder<D>
+  ): Promise<RawCBOR | D | null> {
+    const [stateThreadUtxo] = await this.api.addressesUtxosAssetAll(
+      scriptAddress,
+      toBlockfrostAsset(stateThreadToken)
+    );
+
+    if (!stateThreadUtxo) {
+      throw new Error("State thread utxo not found");
+    }
+
+    if (!stateThreadUtxo.inline_datum) {
+      throw new Error("State thread utxo has no inline datum");
+    }
+
+    const rawDatum: RawCBOR = cbor.decodeFirstSync(
+      stateThreadUtxo.inline_datum,
+      {
+        encoding: "hex",
+      }
+    );
+
+    return decoder ? decoder(rawDatum) : rawDatum;
+  }
+
+  async assetUtxosInAddress(
+    address: Address,
+    asset: Asset
+  ): Promise<BaseUtxo[]>;
+  async assetUtxosInAddress<D>(
+    address: Address,
+    asset: Asset,
+    decoder: DatumDecoder<D>
+  ): Promise<ScriptUtxo<D>[]>;
+  async assetUtxosInAddress<D>(
+    address: Address,
+    asset: Asset,
+    decoder?: DatumDecoder<D>
+  ): Promise<(BaseUtxo | ScriptUtxo<D>)[]> {
+    const utxos = await this.api.addressesUtxosAssetAll(
+      address,
+      toBlockfrostAsset(asset)
+    );
+
+    const fromBlockfrostUtxo = (
+      utxo: ArrayElement<
+        AsyncReturnType<BlockFrostAPI["addressesUtxosAssetAll"]>
+      >
+    ): BaseUtxo => ({
+      address: utxo.address as Address,
+      txOutHash: utxo.tx_hash,
+      txOutIndex: utxo.output_index,
+      amount: utxo.amount.map(fromBlockfrostAmount),
+    });
+
+    if (!decoder) {
+      return utxos.map(fromBlockfrostUtxo);
+    }
+
+    return utxos.map((utxo) => ({
+      ...fromBlockfrostUtxo(utxo),
+      parsedDatum: !utxo.inline_datum
+        ? null
+        : decoder(cbor.decodeFirstSync(utxo.inline_datum, { encoding: "hex" })),
+    }));
+  }
+
+  async assetCirculatingAmount(asset: Asset) {
+    const assetInformation = await this.api.assetsById(
+      toBlockfrostAsset(asset)
+    );
     return BigInt(assetInformation.quantity);
-  },
-};
+  }
+}
 
 // Utilities
 
