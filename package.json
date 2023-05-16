@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "build": "tsc",
+    "build-example": "tsc -p ./examples/tsconfig.json",
     "format": "prettier -w src"
   },
   "dependencies": {
