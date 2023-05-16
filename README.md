@@ -1,10 +1,14 @@
 # DeFi SDK
 
-# Example usage
+## API Documentation
 
-``` typescript
+`npm run generate-docs`
+
+## Example usage
+
+```typescript
 import { BlockFrostAPI } from "@blockfrost/blockfrost-js";
-import { Address, BlockFrostAdapter, LiqwidLayer, SDK } from "../src/index";
+import { Address, BlockFrostAdapter, LiqwidLayer, SDK } from "@liqwid-labs/defi-sdk";
 
 const blockfrostApi = new BlockFrostAPI({
   projectId: "mainnetDLkhcr1mPRpgmsL62OitgwmEwfypnmXQ"

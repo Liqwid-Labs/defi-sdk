@@ -4,117 +4,18 @@ import {
   Protocol,
   ProtocolLayer,
   Quantity,
-  QueryLayer,
+  QueryAdapter,
   StakeAddress,
   ValueOf,
 } from "../../types";
 import { RawCBOR, cborConstructorToObject } from "../../utils/cbor";
 import { addressToPaymentPubKeyHash } from "../../utils/cardano";
 
-export type Tagged<tag, T> = { _tag: tag } & T;
-
-export type Ratio<T> = { numerator: T; denominator: T };
-
-export type FixedDecimal<N extends number> = { decimals: N; value: bigint };
-
-export type LiqwidStateDatum = {
-  supply: Tagged<"Underlying", bigint>;
-  reserve: Tagged<"Underlying", bigint>;
-  qTokens: Tagged<"QToken", bigint>;
-  principal: Tagged<"Underlying", bigint>;
-  interest: Tagged<"Underlying", bigint>;
-  interestIndex: Tagged<"InterestIndex", FixedDecimal<9>>;
-  interestRate: Tagged<"InterestRate", Ratio<bigint>>;
-  lastInterestTime: Tagged<"Time", bigint>;
-  lastBatch: Tagged<"POSIXTime", bigint>;
-  qTokenRate: Tagged<"ExchangeRate", Ratio<bigint>>;
-  minAda: Tagged<"Ada", bigint>;
-};
-
-const parseStateDatum = (rawCbor: RawCBOR): LiqwidStateDatum => {
-  // TODO: this needs to be more robust
-  const toBigInt = (x: RawCBOR): bigint => {
-    switch (typeof x) {
-      case "bigint":
-        return x;
-      case "number":
-        return BigInt(x);
-      default:
-        throw new Error(
-          `Cannot decode state datum: Cannot interpret as bigint: ${x}`
-        );
-    }
-  };
-
-  const decoder: {
-    [k in keyof LiqwidStateDatum]: (c: RawCBOR) => LiqwidStateDatum[k];
-  } = {
-    // TODO: make this more robust
-    supply: (x) => toBigInt(x) as LiqwidStateDatum["supply"],
-    reserve: (x) => toBigInt(x) as LiqwidStateDatum["reserve"],
-    qTokens: (x) => toBigInt(x) as LiqwidStateDatum["qTokens"],
-    principal: (x) => toBigInt(x) as LiqwidStateDatum["principal"],
-    interest: (x) => toBigInt(x) as LiqwidStateDatum["interest"],
-    interestIndex: (x) =>
-      ({
-        decimals: 9,
-        value: toBigInt(x),
-      } as LiqwidStateDatum["interestIndex"]),
-    interestRate: (x) =>
-      ({
-        numerator: toBigInt((x as any)[0]),
-        denominator: toBigInt((x as any)[1]),
-      } as LiqwidStateDatum["interestRate"]),
-    lastInterestTime: (x) =>
-      toBigInt(x) as LiqwidStateDatum["lastInterestTime"],
-    lastBatch: (x) => toBigInt(x) as LiqwidStateDatum["lastBatch"],
-    qTokenRate: (x) =>
-      ({
-        numerator: toBigInt((x as any)[0]),
-        denominator: toBigInt((x as any)[1]),
-      } as LiqwidStateDatum["qTokenRate"]),
-    minAda: (x) => toBigInt(x) as LiqwidStateDatum["minAda"],
-  };
-
-  return cborConstructorToObject(rawCbor, decoder);
-};
-
-export type LiqwidLoanDatum = {
-  owner: Tagged<"PubKeyHash", Buffer>;
-  principal: Tagged<"Underlying", bigint>;
-  interest: Tagged<"Underlying", bigint>;
-  minInterest: Tagged<"Underlying", bigint>;
-  index: Tagged<"InterestIndex", FixedDecimal<9>>;
-};
-
-const parseLoanDatum = (rawCbor: RawCBOR): LiqwidLoanDatum => {
-  const toBigInt = (x: RawCBOR): bigint => {
-    switch (typeof x) {
-      case "bigint":
-        return x;
-      case "number":
-        return BigInt(x);
-      default:
-        throw new Error(
-          `Cannot decode state datum: Cannot interpret as bigint: ${x}`
-        );
-    }
-  };
-
-  const decoder: {
-    [k in keyof LiqwidLoanDatum]: (c: RawCBOR) => LiqwidLoanDatum[k];
-  } = {
-    owner: (x) => x as LiqwidLoanDatum["owner"],
-    principal: (x) => toBigInt(x as any) as LiqwidLoanDatum["principal"],
-    interest: (x) => toBigInt(x as any) as LiqwidLoanDatum["interest"],
-    minInterest: (x) => toBigInt(x) as LiqwidLoanDatum["minInterest"],
-    index: (x) =>
-      ({ decimals: 9, value: toBigInt(x) } as LiqwidLoanDatum["index"]),
-  };
-
-  return cborConstructorToObject(rawCbor, decoder);
-};
-
+/**
+ * Liqwid is a decentralized interest rate protocol for lending on Cardano.
+ * This object provides definitions about the Liqwid markets as well as methods
+ * for parsing each market's state and loan datums.
+ */
 export const Liqwid: Protocol<LiqwidStateDatum, LiqwidLoanDatum> = {
   name: "Liqwid",
   markets: {
@@ -204,8 +105,161 @@ export const Liqwid: Protocol<LiqwidStateDatum, LiqwidLoanDatum> = {
   parseLoanDatum,
 };
 
+/**
+ * Methods for querying information about the Liqwid protocol.
+ *
+ * @params queryAdapter - An implementation of the {@link QueryAdapter} interface used
+ * to query low-level on-chain data.
+ */
+export const mkLiqwidLayer: ProtocolLayer<typeof Liqwid> = (
+  queryAdapter: QueryAdapter
+) => ({
+  suppliedBalanceInMarket: suppliedBalanceInMarket(queryAdapter),
+  currentDebtInMarket: currentDebtInMarket(queryAdapter),
+  marketCirculatingSupply: marketCirculatingSupply(queryAdapter),
+
+  async currentDebt(address: Address | StakeAddress) {
+    const debts = await Promise.all(
+      Object.values(Liqwid.markets).map((market) =>
+        currentDebtInMarket(queryAdapter)(market, address)
+      )
+    );
+
+    return debts.filter(({ quantity }) => quantity > 0);
+  },
+
+  async suppliedBalance(address: Address | StakeAddress) {
+    const balances = await Promise.all(
+      Object.values(Liqwid.markets).map((market) =>
+        suppliedBalanceInMarket(queryAdapter)(market, address)
+      )
+    );
+
+    return balances.filter(({ quantity }) => quantity > 0);
+  },
+
+  async circulatingSupply() {
+    const supplyInEachMarket = await Promise.all(
+      Object.values(Liqwid.markets).map((market) =>
+        marketCirculatingSupply(queryAdapter)(market)
+      )
+    );
+
+    return supplyInEachMarket.filter(({ quantity }) => quantity > 0);
+  },
+});
+
+export type Tagged<tag, T> = { _tag: tag } & T;
+
+export type Ratio<T> = { numerator: T; denominator: T };
+
+export type FixedDecimal<N extends number> = { decimals: N; value: bigint };
+
+/**
+ * Market state datum type for Liqwid's markets.
+ */
+export type LiqwidStateDatum = {
+  supply: Tagged<"Underlying", bigint>;
+  reserve: Tagged<"Underlying", bigint>;
+  qTokens: Tagged<"QToken", bigint>;
+  principal: Tagged<"Underlying", bigint>;
+  interest: Tagged<"Underlying", bigint>;
+  interestIndex: Tagged<"InterestIndex", FixedDecimal<9>>;
+  interestRate: Tagged<"InterestRate", Ratio<bigint>>;
+  lastInterestTime: Tagged<"Time", bigint>;
+  lastBatch: Tagged<"POSIXTime", bigint>;
+  qTokenRate: Tagged<"ExchangeRate", Ratio<bigint>>;
+  minAda: Tagged<"Ada", bigint>;
+};
+
+//
+
+function parseStateDatum(rawCbor: RawCBOR): LiqwidStateDatum {
+  // TODO: this needs to be more robust
+  const toBigInt = (x: RawCBOR): bigint => {
+    switch (typeof x) {
+      case "bigint":
+        return x;
+      case "number":
+        return BigInt(x);
+      default:
+        throw new Error(
+          `Cannot decode state datum: Cannot interpret as bigint: ${x}`
+        );
+    }
+  };
+
+  const decoder: {
+    [k in keyof LiqwidStateDatum]: (c: RawCBOR) => LiqwidStateDatum[k];
+  } = {
+    // TODO: make this more robust
+    supply: (x) => toBigInt(x) as LiqwidStateDatum["supply"],
+    reserve: (x) => toBigInt(x) as LiqwidStateDatum["reserve"],
+    qTokens: (x) => toBigInt(x) as LiqwidStateDatum["qTokens"],
+    principal: (x) => toBigInt(x) as LiqwidStateDatum["principal"],
+    interest: (x) => toBigInt(x) as LiqwidStateDatum["interest"],
+    interestIndex: (x) =>
+      ({
+        decimals: 9,
+        value: toBigInt(x),
+      } as LiqwidStateDatum["interestIndex"]),
+    interestRate: (x) =>
+      ({
+        numerator: toBigInt((x as any)[0]),
+        denominator: toBigInt((x as any)[1]),
+      } as LiqwidStateDatum["interestRate"]),
+    lastInterestTime: (x) =>
+      toBigInt(x) as LiqwidStateDatum["lastInterestTime"],
+    lastBatch: (x) => toBigInt(x) as LiqwidStateDatum["lastBatch"],
+    qTokenRate: (x) =>
+      ({
+        numerator: toBigInt((x as any)[0]),
+        denominator: toBigInt((x as any)[1]),
+      } as LiqwidStateDatum["qTokenRate"]),
+    minAda: (x) => toBigInt(x) as LiqwidStateDatum["minAda"],
+  };
+
+  return cborConstructorToObject(rawCbor, decoder);
+}
+
+export type LiqwidLoanDatum = {
+  owner: Tagged<"PubKeyHash", Buffer>;
+  principal: Tagged<"Underlying", bigint>;
+  interest: Tagged<"Underlying", bigint>;
+  minInterest: Tagged<"Underlying", bigint>;
+  index: Tagged<"InterestIndex", FixedDecimal<9>>;
+};
+
+function parseLoanDatum(rawCbor: RawCBOR): LiqwidLoanDatum {
+  const toBigInt = (x: RawCBOR): bigint => {
+    switch (typeof x) {
+      case "bigint":
+        return x;
+      case "number":
+        return BigInt(x);
+      default:
+        throw new Error(
+          `Cannot decode state datum: Cannot interpret as bigint: ${x}`
+        );
+    }
+  };
+
+  const decoder: {
+    [k in keyof LiqwidLoanDatum]: (c: RawCBOR) => LiqwidLoanDatum[k];
+  } = {
+    owner: (x) => x as LiqwidLoanDatum["owner"],
+    principal: (x) => toBigInt(x as any) as LiqwidLoanDatum["principal"],
+    interest: (x) => toBigInt(x as any) as LiqwidLoanDatum["interest"],
+    minInterest: (x) => toBigInt(x) as LiqwidLoanDatum["minInterest"],
+    index: (x) =>
+      ({ decimals: 9, value: toBigInt(x) } as LiqwidLoanDatum["index"]),
+  };
+
+  return cborConstructorToObject(rawCbor, decoder);
+}
+
 const suppliedBalanceInMarket =
-  (Query: QueryLayer) =>
+  (Query: QueryAdapter) =>
   async <M extends ValueOf<(typeof Liqwid)["markets"]>>(
     market: M,
     address: Address | StakeAddress
@@ -228,7 +282,7 @@ const suppliedBalanceInMarket =
   };
 
 const marketComponentTokenRate =
-  (Query: QueryLayer) =>
+  (Query: QueryAdapter) =>
   async <M extends ValueOf<(typeof Liqwid)["markets"]>>(
     market: M
   ): Promise<Ratio<bigint>> => {
@@ -241,7 +295,7 @@ const marketComponentTokenRate =
   };
 
 const componentTokenToUnderlyingAsset =
-  (Query: QueryLayer) =>
+  (Query: QueryAdapter) =>
   async <M extends ValueOf<(typeof Liqwid)["markets"]>>(
     market: M,
     componentTokenAmount: bigint
@@ -256,7 +310,7 @@ const componentTokenToUnderlyingAsset =
   };
 
 const currentDebtInMarket =
-  (Query: QueryLayer) =>
+  (Query: QueryAdapter) =>
   async <M extends ValueOf<(typeof Liqwid)["markets"]>>(
     market: M,
     address: Address | StakeAddress
@@ -295,7 +349,7 @@ const currentDebtInMarket =
   };
 
 const marketCirculatingSupply =
-  (Query: QueryLayer) =>
+  (Query: QueryAdapter) =>
   async <M extends ValueOf<(typeof Liqwid)["markets"]>>(
     market: M
   ): Promise<Quantity<M["underlyingAsset"]>> => {
@@ -310,41 +364,3 @@ const marketCirculatingSupply =
       componentTokenCirculatingSupply
     );
   };
-
-export const LiqwidLayer: ProtocolLayer<typeof Liqwid> = (
-  Query: QueryLayer
-) => ({
-  suppliedBalanceInMarket: suppliedBalanceInMarket(Query),
-  currentDebtInMarket: currentDebtInMarket(Query),
-  marketCirculatingSupply: marketCirculatingSupply(Query),
-
-  async currentDebt(address) {
-    const debts = await Promise.all(
-      Object.values(Liqwid.markets).map((market) =>
-        currentDebtInMarket(Query)(market, address)
-      )
-    );
-
-    return debts.filter(({ quantity }) => quantity > 0);
-  },
-
-  async suppliedBalance(address) {
-    const balances = await Promise.all(
-      Object.values(Liqwid.markets).map((market) =>
-        suppliedBalanceInMarket(Query)(market, address)
-      )
-    );
-
-    return balances.filter(({ quantity }) => quantity > 0);
-  },
-
-  async circulatingSupply() {
-    const supplyInEachMarket = await Promise.all(
-      Object.values(Liqwid.markets).map((market) =>
-        marketCirculatingSupply(Query)(market)
-      )
-    );
-
-    return supplyInEachMarket.filter(({ quantity }) => quantity > 0);
-  },
-});

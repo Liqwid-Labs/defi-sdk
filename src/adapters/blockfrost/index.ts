@@ -8,14 +8,18 @@ import {
   DatumDecoder,
   NativeToken,
   Quantity,
-  QueryLayer,
+  QueryAdapter,
   ScriptUtxo,
   StakeAddress,
 } from "../../types";
 import { RawCBOR } from "../../utils/cbor";
 import * as cbor from "cbor";
 
-export class BlockFrostAdapter implements QueryLayer {
+/**
+ * Uses the BlockFrost API to interact with the chain and fetch information
+ * related to assets, addresses, and UTXOs.
+ */
+export class BlockFrostAdapter implements QueryAdapter {
   constructor(private readonly api: BlockFrostAPI) {}
 
   async assetAmountInStakeAddress(stakeAddress: StakeAddress, asset: Asset) {

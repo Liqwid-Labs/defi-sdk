@@ -1,12 +1,15 @@
+// Instantiating the SDK to query information about Liqwid using Blockfrost
+// as the on-chain data provider.
+
 import { BlockFrostAPI } from "@blockfrost/blockfrost-js";
-import { Address, BlockFrostAdapter, LiqwidLayer, SDK } from "../src/index";
+import { Address, BlockFrostAdapter, mkLiqwidLayer, SDK } from "../src/index";
 
 const blockfrostApi = new BlockFrostAPI({
   projectId: "mainnetDLkhcr1mPRpgmsL62OitgwmEwfypnmXQ"
 })
 
 const queryAdapter = new BlockFrostAdapter(blockfrostApi);
-const sdk = new SDK(queryAdapter, LiqwidLayer);
+const sdk = new SDK(queryAdapter, mkLiqwidLayer);
 
 const printUserDebtInAllMarkets = async (address: Address): Promise<void> => {
   const userDebt = await sdk.protocol.currentDebt(address);
