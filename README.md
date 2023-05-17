@@ -1,21 +1,35 @@
 # DeFi SDK
 
-## API Documentation
+A library providing methods for querying high-level information about market participants (such as supplied balance and debt) and general market state in DeFi protocols. Currently, only [Liqwid](https://liqwid.finance) is supported.
 
-`npm run generate-docs`
+## Table of Contents
 
-## Example usage
+- [Installation](#installation)
+- [Docs](#docs)
+- [Usage](#usage)
+
+## Installation
+
+```bash
+npm install <replace-with-package-when-done>
+```
+
+## Docs
+
+Up-to-date API documentation can be generated using `npm run generate-docs`.
+
+## Usage
 
 ```typescript
 import { BlockFrostAPI } from "@blockfrost/blockfrost-js";
-import { Address, BlockFrostAdapter, LiqwidLayer, SDK } from "@liqwid-labs/defi-sdk";
+import { Address, BlockFrostAdapter, mkLiqwidLayer, SDK } from "../src/index";
 
 const blockfrostApi = new BlockFrostAPI({
-  projectId: "mainnetDLkhcr1mPRpgmsL62OitgwmEwfypnmXQ"
+  projectId: "<your api key here>"
 })
 
 const queryAdapter = new BlockFrostAdapter(blockfrostApi);
-const sdk = new SDK(queryAdapter, LiqwidLayer);
+const sdk = new SDK(queryAdapter, mkLiqwidLayer);
 
 const printUserDebtInAllMarkets = async (address: Address): Promise<void> => {
   const userDebt = await sdk.protocol.currentDebt(address);
