@@ -1,0 +1,6 @@
+.envrc
+.direnv
+dist
+docs
+node_modules
+result
