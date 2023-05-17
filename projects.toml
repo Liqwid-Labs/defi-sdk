@@ -12,9 +12,7 @@
 name = "defi-sdk"
 relPath = ""
 subsystem = "nodejs"
-translator = "package-lock"
-translators = [ "package-lock", "package-json",]
+translator = "package-json"
+translators = [ "package-json",]
 
 [defi-sdk.subsystemInfo]
-noDev = false
-nodejs = 18
