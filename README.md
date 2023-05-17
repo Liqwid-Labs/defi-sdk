@@ -11,7 +11,7 @@ A library providing methods for querying high-level information about market par
 ## Installation
 
 ```bash
-npm install <replace-with-package-when-done>
+npm install "@liqwid-labs/defi-sdk"
 ```
 
 ## Docs
@@ -22,7 +22,7 @@ Up-to-date API documentation can be generated using `npm run generate-docs`.
 
 ```typescript
 import { BlockFrostAPI } from "@blockfrost/blockfrost-js";
-import { Address, BlockFrostAdapter, mkLiqwidLayer, SDK } from "../src/index";
+import { Address, BlockFrostAdapter, mkLiqwidLayer, SDK } from "@liqwid-labs/defi-sdk";
 
 const blockfrostApi = new BlockFrostAPI({
   projectId: "<your api key here>"

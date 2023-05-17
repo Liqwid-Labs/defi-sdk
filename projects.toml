@@ -16,3 +16,4 @@ translator = "package-json"
 translators = [ "package-json",]
 
 [defi-sdk.subsystemInfo]
+nodejs = 18
