@@ -1,0 +1,30 @@
+{
+  "name": "@liqwid-labs/defi-sdk",
+  "version": "1.0.0",
+  "description": "A set of utilities to query on-chain data from DeFi protocols on the Cardano Blockchain",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "build-example": "tsc -p ./examples/tsconfig.json",
+    "prepublishOnly": "npm run build",
+    "generate-docs": "typedoc ./src",
+    "format": "prettier -w ./src"
+  },
+  "dependencies": {
+    "@blockfrost/blockfrost-js": "^5.3.1",
+    "@emurgo/cardano-serialization-lib-nodejs": "^11.4.0",
+    "cbor": "^8.1.0"
+  },
+  "devDependencies": {
+    "prettier": "^2.8.8",
+    "typedoc": "^0.24.7",
+    "typescript": "^5.0.4"
+  },
+  "publishConfig": {
+    "access": "restricted"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ]
+}
