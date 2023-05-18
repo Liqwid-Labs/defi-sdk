@@ -1,6 +1,6 @@
 {
   "name": "@liqwid-labs/defi-sdk",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A set of utilities to query on-chain data from DeFi protocols on the Cardano Blockchain",
   "main": "dist/index.js",
   "scripts": {
@@ -23,8 +23,10 @@
   "publishConfig": {
     "access": "restricted"
   },
+  "license": "Apache-2.0",
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ]
 }
