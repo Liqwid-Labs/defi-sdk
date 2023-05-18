@@ -45,7 +45,7 @@ export type NativeToken = {
  *
  * Fields:
  * - underlyingAsset: the underlying token being lent
- * - componentToken: the liquidity token minted by the market
+ * - liquidityToken: the liquidity token minted by the market
  * - stateToken: a token used to identify the market's state
  * - stateUtxoAddress: the address of the UTxO where the market's state is stored
  * - loanTokens: an array of tokens that represent the loans made by the market
@@ -60,7 +60,7 @@ export type Market = {
   /** The underlying token being lent */
   underlyingAsset: Asset;
   /** The market's liquidity token */
-  componentToken: NativeToken;
+  liquidityToken: NativeToken;
   /** A state-thread token used to identify the market's state UTxO. */
   stateToken: NativeToken;
   /** The address where the market's state UTxO is stored */

@@ -21,7 +21,7 @@ export const Liqwid: Protocol<LiqwidStateDatum, LiqwidLoanDatum> = {
   markets: {
     ADA: {
       underlyingAsset: "lovelace",
-      componentToken: {
+      liquidityToken: {
         policyId: "a04ce7a52545e5e33c2867e148898d9e667a69602285f6a1298f9d68",
         hexTokenName: "",
       },
@@ -49,7 +49,7 @@ export const Liqwid: Protocol<LiqwidStateDatum, LiqwidLoanDatum> = {
         policyId: "8db269c3ec630e06ae29f74bc39edd1f87c819f1056206e879a1cd61",
         hexTokenName: "446a65644d6963726f555344",
       },
-      componentToken: {
+      liquidityToken: {
         policyId: "6df63e2fdde8b2c3b3396265b0cc824aa4fb999396b1c154280f6b0c",
         hexTokenName: "",
       },
@@ -77,7 +77,7 @@ export const Liqwid: Protocol<LiqwidStateDatum, LiqwidLoanDatum> = {
         policyId: "8db269c3ec630e06ae29f74bc39edd1f87c819f1056206e879a1cd61",
         hexTokenName: "5368656e4d6963726f555344",
       },
-      componentToken: {
+      liquidityToken: {
         policyId: "e1ff3557106fe13042ba0f772af6a2e43903ccfaaf03295048882c93",
         hexTokenName: "",
       },
@@ -264,24 +264,24 @@ const suppliedBalanceInMarket =
     market: M,
     address: Address | StakeAddress
   ): Promise<Quantity<M["underlyingAsset"]>> => {
-    const componentTokenBalance = isStakeAddress(address)
-      ? await Query.assetAmountInStakeAddress(address, market.componentToken)
-      : await Query.assetAmountInAddress(address, market.componentToken);
+    const liquidityTokenBalance = isStakeAddress(address)
+      ? await Query.assetAmountInStakeAddress(address, market.liquidityToken)
+      : await Query.assetAmountInAddress(address, market.liquidityToken);
 
-    if (componentTokenBalance === 0n) {
+    if (liquidityTokenBalance === 0n) {
       return {
         asset: market.underlyingAsset,
         quantity: 0n,
       };
     }
 
-    return componentTokenToUnderlyingAsset(Query)(
+    return liquidityTokenToUnderlyingAsset(Query)(
       market,
-      componentTokenBalance
+      liquidityTokenBalance
     );
   };
 
-const marketComponentTokenRate =
+const marketliquidityTokenRate =
   (Query: QueryAdapter) =>
   async <M extends ValueOf<(typeof Liqwid)["markets"]>>(
     market: M
@@ -294,18 +294,18 @@ const marketComponentTokenRate =
     return stateDatum.qTokenRate;
   };
 
-const componentTokenToUnderlyingAsset =
+const liquidityTokenToUnderlyingAsset =
   (Query: QueryAdapter) =>
   async <M extends ValueOf<(typeof Liqwid)["markets"]>>(
     market: M,
-    componentTokenAmount: bigint
+    liquidityTokenAmount: bigint
   ): Promise<Quantity<M["underlyingAsset"]>> => {
-    const componentTokenRate = await marketComponentTokenRate(Query)(market);
+    const liquidityTokenRate = await marketliquidityTokenRate(Query)(market);
     return {
       asset: market.underlyingAsset,
       quantity:
-        (componentTokenAmount * componentTokenRate.numerator) /
-        componentTokenRate.denominator,
+        (liquidityTokenAmount * liquidityTokenRate.numerator) /
+        liquidityTokenRate.denominator,
     };
   };
 
@@ -356,11 +356,11 @@ const marketCirculatingSupply =
     // NOTE: we've chosen to implement this as the total circulating quantity of
     // the market's qTokens, but the supply can also be retrieved from the
     // MarketState datums.
-    const componentTokenCirculatingSupply = await Query.assetCirculatingAmount(
-      market.componentToken
+    const liquidityTokenCirculatingSupply = await Query.assetCirculatingAmount(
+      market.liquidityToken
     );
-    return componentTokenToUnderlyingAsset(Query)(
+    return liquidityTokenToUnderlyingAsset(Query)(
       market,
-      componentTokenCirculatingSupply
+      liquidityTokenCirculatingSupply
     );
   };
